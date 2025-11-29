@@ -44,7 +44,10 @@ If you want to run the Python source code or build the executable yourself (requ
 
 **This tool is provided completely FREE of charge and is not for sale.** It is an open-source, fan-made project.
 
-* This application is **NOT** affiliated with, endorsed, sponsored, or approved by ArenaNet, LLC or NCSoft Corporation.  
+* This application is **NOT** affiliated with, endorsed, sponsored, or approved by ArenaNet, LLC or NCSoft Corporation.
 * "Guild Wars", "ArenaNet", and "NCSoft" are trademarks or registered trademarks of NCSoft Corporation.  
 * All game content, quest names, images, and wiki text displayed within this application are the property of their respective owners and the Guild Wars Wiki community (licensed under GNU FDL 1.2).  
 * The application's code author is **Akito**.
+
+
+<img width="1402" height="932" alt="WindowView" src="https://github.com/user-attachments/assets/02c1632c-2249-42fe-b486-3c4ec17eb809" />
