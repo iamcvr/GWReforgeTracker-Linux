@@ -23,11 +23,11 @@ The interface follows a clean, modern Dark UI/UX theme and runs entirely as a lo
 
 ---
 
-### ⬇️ Download and Installation (Windows EXE)
+### Download and Installation (Windows EXE)
 
 The easiest way to use the tracker is by downloading the standalone executable:
 
-1.  **Download:** Download the latest `GWReforgeTracker.exe` file from the **Releases** page.
+1.  **Download:** Download the latest `GWReforgeTracker.exe` file from the **Releases page** at [https://github.com/Mr-Akito/GWReforgeTracker/releases](https://github.com/Mr-Akito/GWReforgeTracker/releases).
 2.  **Run:** Place the executable in any folder and run it. The application automatically creates `gw1_data.db` and `gw1_cache.db` files to store your quest lists and progress locally.
 
 ### Building from Source
@@ -36,7 +36,7 @@ If you want to run the Python source code or build the executable yourself (requ
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [github.com/Mr-Akito/GWReforgeTracker/](https://github.com/Mr-Akito/GWReforgeTracker/releases)
+    git clone [https://github.com/Mr-Akito/GWReforgeTracker/](https://github.com/Mr-Akito/GWReforgeTracker/)
     cd GWReforgeTracker
     ```
 2.  **Install Dependencies:**
@@ -60,10 +60,9 @@ If you want to run the Python source code or build the executable yourself (requ
 
 This tool is provided completely **FREE of charge** and is not for sale. It is an open-source, fan-made project.
 
-* This application is **NOT affiliated with, endorsed, sponsored, or approved by ArenaNet, LLC or NCSoft Corporation.**
+* This application is **NOT affiliated with, endorsed, sponsored, or approved by ArenaNet, LLC or NCSoft Corporation**.
 * "Guild Wars", "ArenaNet", and "NCSoft" are trademarks or registered trademarks of NCSoft Corporation.
 * All game content, quest names, images, and wiki text displayed within this application are the property of their respective owners and the Guild Wars Wiki community (licensed under GNU FDL 1.2).
-
 * The application's code author is Akito.
 
 <img width="1685" height="1076" alt="image" src="https://github.com/user-attachments/assets/2cc7e365-bab5-4d3d-9943-6407a3a61e50" />
@@ -71,5 +70,6 @@ This tool is provided completely **FREE of charge** and is not for sale. It is a
 <img width="435" height="1011" alt="image" src="https://github.com/user-attachments/assets/45c41724-4619-4454-a5d9-70cc5a3c5c82" />
 
 <img width="383" height="238" alt="image" src="https://github.com/user-attachments/assets/2250afc5-7b71-46d7-b5dd-5b274ae421c3" />
+
 
 
