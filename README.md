@@ -8,7 +8,7 @@ A modern, minimalist desktop application designed to help Guild Wars players tra
 
 The interface follows a clean, modern Dark UI/UX theme and runs entirely as a local executable.
 
-Yes, there is an install warning, all files are safe. Feel free to check them all out. Don't have a hundred to fork over to Windows for a Certificate.
+Yes, there is an install warning, all files are safe. Feel free to check them all out. Don't have a hundred dollars to fork over to Windows for a Certificate.
 
 ---
 
@@ -72,6 +72,7 @@ This tool is provided completely **FREE of charge** and is not for sale. It is a
 <img width="435" height="1011" alt="image" src="https://github.com/user-attachments/assets/45c41724-4619-4454-a5d9-70cc5a3c5c82" />
 
 <img width="383" height="238" alt="image" src="https://github.com/user-attachments/assets/2250afc5-7b71-46d7-b5dd-5b274ae421c3" />
+
 
 
 
