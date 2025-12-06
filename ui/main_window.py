@@ -1,21 +1,25 @@
 # ui/main_window.py
 import os
+import sys
 import copy
 import logging
+import subprocess
 from urllib.parse import quote
-from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QFrame, QLabel, QPushButton, QLineEdit, QTabWidget, QProgressBar, QStackedWidget, QGraphicsDropShadowEffect, QDialog, QMenu, QSizePolicy
+from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QFrame, 
+                             QLabel, QPushButton, QLineEdit, QProgressBar, QStackedWidget, 
+                             QGraphicsDropShadowEffect, QDialog, QFileDialog, QSizePolicy, QMenu)
 from PySide6.QtCore import QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QAction
 from database import DataManager
 from scraper import DatabaseSyncer
+from updater import UpdateChecker, UpdateDownloader
 from config import AppConfig, ThemeColors, CAMPAIGN_ORDER
 from .style import create_custom_icon, get_stylesheet
-from .widgets import ProfileSelectorWidget, FilterSelectorWidget
-from .dialogs import CustomDialog
+from .widgets import ProfileSelectorWidget, FilterSelectorWidget, CampaignSelectorWidget
+from .dialogs import CustomDialog, HistoryDialog
 from .tabs import CampaignTab
 from .browser import CustomWebPage, RoundedWebEngineView
 
-# NEW: Global state to suppress redundant logging
 _LAST_FAILED_URL = ""
 
 class GuildWarsTracker(QMainWindow):
@@ -29,6 +33,10 @@ class GuildWarsTracker(QMainWindow):
         self.syncer.sync_finished.connect(self._on_sync_finished)
         self.syncer.progress_updated.connect(lambda p, m: self.sync_button.setText(f"{m} ({p}%)"))
         
+        self.update_checker = UpdateChecker()
+        self.update_checker.result_ready.connect(self.handle_update_check_result)
+        self.downloader = None 
+        
         self.game_check_timer = QTimer()
         self.game_check_timer.timeout.connect(self.check_game_running)
         if auto_close: self.game_check_timer.start(AppConfig.AUTO_CLOSE_CHECK_INTERVAL_MS)
@@ -40,8 +48,10 @@ class GuildWarsTracker(QMainWindow):
         
         self.dark_mode = self.data.get_theme()
         
-        # Store the last requested quest name for error handling
-        self.last_requested_quest_name = "" 
+        self.last_requested_quest_name = ""
+        self.last_failed_url = "" 
+        self.selected_quest_widget = None 
+        self.tab_map = {} 
 
         self._setup_ui()
         self._build_tabs()
@@ -61,8 +71,7 @@ class GuildWarsTracker(QMainWindow):
             if not running: 
                 logging.info("Game process not found. Closing application.")
                 self.close()
-        except Exception as e: 
-            logging.error(f"Error checking game process: {e}")
+        except: pass
 
     def _setup_ui(self):
         central_widget = QWidget()
@@ -81,6 +90,7 @@ class GuildWarsTracker(QMainWindow):
         l_layout.setContentsMargins(25, 30, 25, 30)
         l_layout.setSpacing(15)
 
+        # --- HEADER ROW ---
         head_row = QHBoxLayout()
         head_row.addWidget(QLabel("Quest Journal", objectName="H1"))
         head_row.addStretch()
@@ -89,56 +99,46 @@ class GuildWarsTracker(QMainWindow):
         search_btn.setIcon(create_custom_icon("search", ThemeColors.WHITE))
         search_btn.setIconSize(QSize(20, 20))
         search_btn.setFixedSize(36, 36)
-        search_btn.setToolTip("Search Wiki")
         search_btn.clicked.connect(self.search_wiki_direct)
         head_row.addWidget(search_btn)
 
         self.theme_button = QPushButton(objectName="HeaderBtn")
-        self.theme_button.setIconSize(QSize(20, 20))
         self.theme_button.setFixedSize(36, 36)
-        self.theme_button.setToolTip("Toggle Wiki Theme")
         self.theme_button.clicked.connect(self.toggle_theme)
         head_row.addWidget(self.theme_button)
         
-        info_btn = QPushButton(objectName="HeaderBtn")
-        info_btn.setIcon(create_custom_icon("info", ThemeColors.WHITE))
-        info_btn.setIconSize(QSize(20, 20))
-        info_btn.setFixedSize(36, 36)
-        info_btn.setToolTip("About & Legal")
-        info_btn.clicked.connect(self.show_about)
-        head_row.addWidget(info_btn)
+        # --- MENU BUTTON (3 DOTS) ---
+        self.menu_btn = QPushButton(objectName="HeaderBtn")
+        self.menu_btn.setIcon(create_custom_icon("menu", ThemeColors.WHITE))
+        self.menu_btn.setIconSize(QSize(20, 20))
+        self.menu_btn.setFixedSize(36, 36)
+        self.menu_btn.setToolTip("Options")
+        self.menu_btn.clicked.connect(self.show_main_menu)
+        head_row.addWidget(self.menu_btn)
+        
         l_layout.addLayout(head_row)
         
-        # --- NEW FILTER/SORT ROW ---
+        # --- FILTER ROW ---
         filter_row = QHBoxLayout()
         filter_row.setSpacing(10)
-        # CRITICAL: This layout itself must align items to the top
         filter_row.setAlignment(Qt.AlignmentFlag.AlignTop) 
         
-        # New Animated Filter Selector
         self.filter_selector = FilterSelectorWidget()
         self.filter_selector.filter_changed.connect(self.apply_filter_mode)
-        # Explicitly set alignment for the widget within the layout
         filter_row.addWidget(self.filter_selector, 0, Qt.AlignmentFlag.AlignTop)
         
         self.search_input = QLineEdit()
-        self.search_input.setObjectName("PillSearchInput") # Styled in style.py
+        self.search_input.setObjectName("PillSearchInput") 
         self.search_input.setPlaceholderText("Search...")
         self.search_input.returnPressed.connect(self.search_wiki_direct)
         self.search_input.textChanged.connect(self.on_search_text_changed)
-        
-        # STYLE FIX: Border radius 18px makes it a perfect pill shape (half of 36px height)
         self.search_input.setFixedHeight(36)
-        # REMOVED EMBEDDED CSS: Now uses PillSearchInput objectName
-        
-        # Explicitly set alignment for the search input as well
         filter_row.addWidget(self.search_input, 1, Qt.AlignmentFlag.AlignTop)
-        
         l_layout.addLayout(filter_row)
-        # ---------------------------
 
         l_layout.addWidget(QLabel("Character Profile", objectName="SubText"))
         
+        # --- PROFILE ROW ---
         prof_layout = QHBoxLayout()
         self.profile_selector = ProfileSelectorWidget()
         self.profile_selector.update_state(self.data.get_profiles(), self.data.current_profile_name)
@@ -147,41 +147,59 @@ class GuildWarsTracker(QMainWindow):
         
         tools_layout = QHBoxLayout()
         tools_layout.setSpacing(5)
+        
         new_btn = QPushButton("+", objectName="ToolBtn")
-        new_btn.setFixedSize(40, 40)
+        new_btn.setFixedSize(32, 32)
         new_btn.setToolTip("Create New Profile")
         new_btn.clicked.connect(self.create_new_profile)
         tools_layout.addWidget(new_btn)
+
         del_btn = QPushButton(objectName="ToolBtn")
         del_btn.setIcon(create_custom_icon("trash", ThemeColors.RED))
-        del_btn.setFixedSize(40, 40)
+        del_btn.setFixedSize(32, 32)
         del_btn.setToolTip("Delete Current Profile")
         del_btn.clicked.connect(self.delete_current_profile)
         tools_layout.addWidget(del_btn)
+        
         prof_layout.addLayout(tools_layout)
-        prof_layout.setAlignment(tools_layout, Qt.AlignmentFlag.AlignTop)
         l_layout.addLayout(prof_layout)
         
-        self.tabs_widget = QTabWidget()
-        l_layout.addWidget(self.tabs_widget)
+        # --- CAMPAIGN SELECTOR ---
+        l_layout.addWidget(QLabel("Select Campaign", objectName="SubText"))
+        self.campaign_selector = CampaignSelectorWidget()
+        self.campaign_selector.campaign_changed.connect(self.switch_campaign_view)
+        l_layout.addWidget(self.campaign_selector)
+        
+        self.campaign_stack = QStackedWidget()
+        l_layout.addWidget(self.campaign_stack)
 
+        # --- FOOTER ---
         footer = QVBoxLayout()
-        prog_row = QHBoxLayout()
-        prog_row.addWidget(QLabel("Global Progress", objectName="SubText"))
-        prog_row.addStretch()
-        self.global_count_label = QLabel("0 / 0", objectName="SubText")
-        self.global_count_label.setStyleSheet(f"color: {ThemeColors.GOLD}; font-weight: bold;")
-        prog_row.addWidget(self.global_count_label)
-        footer.addLayout(prog_row)
-        
-        self.global_progress_bar = QProgressBar()
-        self.global_progress_bar.setFixedHeight(18) 
-        self.global_progress_bar.setTextVisible(True)
-        footer.addWidget(self.global_progress_bar)
-        
+        footer.setSpacing(12) 
         self.sync_button = QPushButton("Sync Database", objectName="PrimaryBtn")
         self.sync_button.clicked.connect(self.start_sync)
         footer.addWidget(self.sync_button)
+        
+        prog_row = QHBoxLayout()
+        prog_row.setSpacing(15)
+        prog_row.addWidget(QLabel("Global Progress:", objectName="SubText"))
+        
+        self.global_progress_bar = QProgressBar()
+        self.global_progress_bar.setObjectName("CampBar")
+        self.global_progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.global_progress_bar.setFixedHeight(12) 
+        self.global_progress_bar.setTextVisible(False)
+        self.global_progress_bar.setStyleSheet(f"""
+            QProgressBar {{ background: rgba(255,255,255,0.1); border: none; border-radius: 6px; }}
+            QProgressBar::chunk {{ background-color: {ThemeColors.GOLD}; border-radius: 6px; }}
+        """)
+        prog_row.addWidget(self.global_progress_bar)
+        
+        self.global_count_label = QLabel("0 / 0", objectName="SubText")
+        self.global_count_label.setStyleSheet(f"color: {ThemeColors.GOLD}; font-weight: bold; margin-left: 2px;")
+        prog_row.addWidget(self.global_count_label)
+        
+        footer.addLayout(prog_row)
         l_layout.addLayout(footer)
 
         right_panel = QFrame(objectName="CardPanel")
@@ -205,7 +223,6 @@ class GuildWarsTracker(QMainWindow):
         self.web_view = RoundedWebEngineView()
         self.web_view.setPage(CustomWebPage(self.web_view)) 
         self.web_view.loadStarted.connect(self.show_loading)
-        # Connect loadFinished to a new slot that checks for success/failure
         self.web_view.loadFinished.connect(self.handle_load_finished) 
         self.stack_widget.addWidget(self.web_view)
 
@@ -224,31 +241,140 @@ class GuildWarsTracker(QMainWindow):
         main_layout.addWidget(left_panel)
         main_layout.addWidget(right_panel, 1) 
 
+    def show_main_menu(self):
+        menu = QMenu(self)
+        
+        act_history = QAction("Quest History", self)
+        act_history.triggered.connect(self.show_history)
+        menu.addAction(act_history)
+        
+        menu.addSeparator()
+        
+        act_import = QAction("Import Profile", self)
+        act_import.triggered.connect(self.import_profile)
+        menu.addAction(act_import)
+        
+        act_export = QAction("Export Profile", self)
+        act_export.triggered.connect(self.export_profile)
+        menu.addAction(act_export)
+        
+        menu.addSeparator()
+ 
+        act_update = QAction("Check for Updates", self)
+        act_update.triggered.connect(self.check_updates_manual)
+        menu.addAction(act_update)
+        
+        menu.addSeparator()
+        
+        act_about = QAction("About && Legal", self)
+        act_about.triggered.connect(self.show_about)
+        menu.addAction(act_about)
+        
+        menu.exec(self.menu_btn.mapToGlobal(self.menu_btn.rect().bottomLeft()))
+
+    def show_history(self):
+        data = self.data.get_completion_history()
+        HistoryDialog(data, self).exec()
+
+    def export_profile(self):
+        filename, _ = QFileDialog.getSaveFileName(self, "Export Profile", f"{self.data.current_profile_name}.json", "JSON Files (*.json)")
+        if filename:
+            try:
+                self.data.export_profile_to_json(filename)
+                CustomDialog("Success", f"Profile exported to:\n{filename}", self, is_confirmation=False).exec()
+            except Exception as e:
+                CustomDialog("Error", f"Export failed: {e}", self, is_confirmation=False).exec()
+
+    def import_profile(self):
+        filename, _ = QFileDialog.getOpenFileName(self, "Import Profile", "", "JSON Files (*.json)")
+        if filename:
+            try:
+                count = self.data.import_profile_from_json(filename)
+                self._build_tabs() 
+                CustomDialog("Success", f"Imported {count} quest records.", self, is_confirmation=False).exec()
+            except Exception as e:
+                CustomDialog("Error", f"Import failed: {e}", self, is_confirmation=False).exec()
+
+    def check_updates_manual(self):
+        if self.update_checker.isRunning():
+            self.update_checker.requestInterruption()
+            self.update_checker.quit()
+            self.update_checker.wait()
+        
+        self.update_checker.start()
+
+    def handle_update_check_result(self, has_update, url, tag, error_msg):
+        if error_msg: CustomDialog("Update Check Failed", f"Error: {error_msg}", self, is_confirmation=False).exec()
+        elif has_update:
+            msg = f"A new version ({tag}) is available!\n\nDownload now?"
+            if CustomDialog("Update Available", msg, self, is_confirmation=True).exec() == QDialog.DialogCode.Accepted:
+                self.start_download(url)
+        else: CustomDialog("No Updates", "You are running the latest version.", self, is_confirmation=False).exec()
+
+    def start_download(self, url):
+        self.dl_dialog = CustomDialog("Downloading Update", "Please wait...", self, is_confirmation=False)
+        self.dl_dialog.show()
+        
+        if self.downloader and self.downloader.isRunning():
+            self.downloader.requestInterruption()
+            self.downloader.quit()
+            self.downloader.wait()
+        self.downloader = UpdateDownloader(url)
+        self.downloader.progress.connect(lambda p: self.dl_dialog.setWindowTitle(f"Downloading... {p}%"))
+        self.downloader.finished.connect(self.on_download_finished)
+        self.downloader.error.connect(self.on_download_error)
+        self.downloader.start()
+
+    def on_download_error(self, err_msg):
+        if hasattr(self, 'dl_dialog'): self.dl_dialog.close()
+        CustomDialog("Update Failed", f"Download error: {err_msg}", self, is_confirmation=False).exec()
+
+    def on_download_finished(self, file_path):
+        if hasattr(self, 'dl_dialog'): self.dl_dialog.close()
+        try:
+            current_exe = sys.executable
+            if not getattr(sys, 'frozen', False):
+                CustomDialog("Update Downloaded", f"Update saved to:\n{file_path}\n(Dev env: No restart)", self, is_confirmation=False).exec()
+                return
+            bat_path = os.path.join(os.path.dirname(current_exe), "updater.bat")
+            with open(bat_path, "w") as bat:
+                bat.write(f'@echo off\ntimeout /t 2 /nobreak >nul\ndel "{current_exe}"\nmove "{file_path}" "{current_exe}"\nstart "" "{current_exe}"\ndel "%~f0"\n')
+            subprocess.Popen([bat_path], shell=True)
+            sys.exit(0)
+        except Exception as e:
+            CustomDialog("Update Error", f"Failed to install: {e}", self, is_confirmation=False).exec()
+
     def apply_filter_mode(self, mode):
-        # Applies to all tabs
-        for i in range(self.tabs_widget.count()):
-            tab = self.tabs_widget.widget(i)
-            if isinstance(tab, CampaignTab):
-                tab.set_filter_mode(mode)
+        for i in range(self.campaign_stack.count()):
+            tab = self.campaign_stack.widget(i)
+            if isinstance(tab, CampaignTab): tab.set_filter_mode(mode)
 
     def _build_tabs(self):
-        for i in range(self.tabs_widget.count()):
-            tab = self.tabs_widget.widget(i)
+        for i in range(self.campaign_stack.count()):
+            tab = self.campaign_stack.widget(i)
             if isinstance(tab, CampaignTab): tab.stop_loading()
-
-        self.tabs_widget.clear()
+        while self.campaign_stack.count(): self.campaign_stack.removeWidget(self.campaign_stack.widget(0))
+        self.selected_quest_widget = None
         self.tab_map = {} 
         current_data = self.data.get_current_quests()
-        
+        available = []
         for camp in CAMPAIGN_ORDER:
             if camp in self.data.quest_db:
+                available.append(camp)
                 tab = CampaignTab(camp, self.data.quest_db[camp], current_data)
                 tab.quest_status_changed.connect(self.handle_quest_update)
                 tab.reset_requested.connect(self.handle_campaign_reset)
                 tab.wiki_requested.connect(self.load_quest)
-                self.tabs_widget.addTab(tab, camp)
+                self.campaign_stack.addWidget(tab)
                 self.tab_map[camp] = tab
+        if available: self.campaign_selector.update_options(available, available[0])
         self.update_global_progress()
+
+    def switch_campaign_view(self, campaign_name):
+        if campaign_name in self.tab_map:
+            self.campaign_stack.setCurrentWidget(self.tab_map[campaign_name])
+            available = [c for c in CAMPAIGN_ORDER if c in self.tab_map]
+            self.campaign_selector.update_options(available, campaign_name)
 
     def handle_quest_update(self, name, status):
         self.data.set_status(name, status)
@@ -257,28 +383,23 @@ class GuildWarsTracker(QMainWindow):
     def handle_campaign_reset(self, campaign_name):
         self.data.reset_campaign(campaign_name)
         current_data = self.data.get_current_quests()
-        if campaign_name in self.tab_map:
-            self.tab_map[campaign_name].refresh_tab_state(current_data)
+        if campaign_name in self.tab_map: self.tab_map[campaign_name].refresh_tab_state(current_data)
         self.update_global_progress()
 
     def create_new_profile(self):
-        dlg = CustomDialog("New Profile", "Enter a name for the new character profile:", self, is_confirmation=False, show_input=True)
+        dlg = CustomDialog("New Profile", "Enter name:", self, is_confirmation=False, show_input=True)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             name = dlg.get_input_text().strip()
-            if name:
-                if self.data.create_profile(name):
-                    self.profile_selector.update_state(self.data.get_profiles(), self.data.current_profile_name) 
-                    self._build_tabs() 
-                else:
-                    CustomDialog("Error", "Profile already exists or invalid name.", self, is_confirmation=False).exec()
+            if self.data.create_profile(name):
+                self.profile_selector.update_state(self.data.get_profiles(), self.data.current_profile_name) 
+                self._build_tabs() 
+            else: CustomDialog("Error", "Invalid name or already exists.", self, is_confirmation=False).exec()
 
     def delete_current_profile(self):
         current = self.data.current_profile_name
         if len(self.data.get_profiles()) <= 1:
-            CustomDialog("Error", "Cannot delete the last profile.", self, is_confirmation=False).exec()
-            return
-        dlg = CustomDialog("Delete Profile", f"Are you sure you want to delete '{current}'?\nThis cannot be undone.", self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
+            CustomDialog("Error", "Cannot delete last profile.", self, is_confirmation=False).exec(); return
+        if CustomDialog("Delete Profile", f"Delete '{current}'?", self).exec() == QDialog.DialogCode.Accepted:
             if self.data.delete_profile(current):
                 self.profile_selector.update_state(self.data.get_profiles(), self.data.current_profile_name) 
                 self._build_tabs() 
@@ -288,175 +409,90 @@ class GuildWarsTracker(QMainWindow):
         self.data.switch_profile(name)
         self.profile_selector.update_state(self.data.get_profiles(), self.data.current_profile_name) 
         current_data = self.data.get_current_quests()
-        
-        if self.tabs_widget.count() > 0:
-            for i in range(self.tabs_widget.count()):
-                tab = self.tabs_widget.widget(i)
-                if isinstance(tab, CampaignTab):
-                    tab.refresh_tab_state(current_data)
-            self.update_global_progress()
-        else:
-            self._build_tabs()
+        for i in range(self.campaign_stack.count()):
+            tab = self.campaign_stack.widget(i)
+            if isinstance(tab, CampaignTab): tab.refresh_tab_state(current_data)
+        self.update_global_progress()
 
-    def load_quest(self, quest_name):
+    def load_quest(self, quest_name, widget_ref=None):
         self.show_loading()
-        self.last_requested_quest_name = quest_name # Store quest name
+        self.last_requested_quest_name = quest_name 
+        if widget_ref:
+            if self.selected_quest_widget and self.selected_quest_widget != widget_ref:
+                try: self.selected_quest_widget.set_highlighted(False)
+                except: pass
+            self.selected_quest_widget = widget_ref
+            self.selected_quest_widget.set_highlighted(True)
         
-        if "Reach Level" in quest_name: 
-            url = "https://wiki.guildwars.com/wiki/Legendary_Defender_of_Ascalon"
-        else:
-            encoded = quote(quest_name.replace(" ", "_"))
-            url = f"https://wiki.guildwars.com/wiki/{encoded}"
+        if quest_name in AppConfig.WIKI_OVERRIDES: url = f"https://wiki.guildwars.com/wiki/{AppConfig.WIKI_OVERRIDES[quest_name]}"
+        elif "Reach Level" in quest_name: url = "https://wiki.guildwars.com/wiki/Legendary_Defender_of_Ascalon"
+        else: url = f"https://wiki.guildwars.com/wiki/{quote(quest_name.replace(' ', '_'))}"
 
-        # --- CACHE LOGIC ---
-        cached_html = self.data.get_cached_content(url)
-        
-        if cached_html:
-            self.web_view.setHtml(cached_html, QUrl(url))
-        else:
-            self.web_view.setUrl(QUrl(url))
+        cached = self.data.get_cached_content(url)
+        if cached: self.web_view.setHtml(cached, QUrl(url))
+        else: self.web_view.setUrl(QUrl(url))
 
-    def show_loading(self):
-        self.stack_widget.setCurrentIndex(2)
+    def show_loading(self): self.stack_widget.setCurrentIndex(2)
     
     def handle_load_finished(self, ok):
         global _LAST_FAILED_URL
-        
         if ok:
-            _LAST_FAILED_URL = "" # Clear failed status on success
+            _LAST_FAILED_URL = ""
             self.finalize_page()
         else:
             failed_url = self.web_view.url().toString()
-            
-            # Suppress repetitive logging if the URL is the same
             if failed_url != _LAST_FAILED_URL:
                  logging.warning(f"Failed to load URL: {failed_url}. Showing custom error message.")
                  _LAST_FAILED_URL = failed_url
-            
-            # Encode the quest name for use in a JavaScript search function
-            encoded_quest = quote(self.last_requested_quest_name)
-            
-            error_html = f"""
-                <script>
-                    function searchWiki() {{
-                        // Use the last requested quest name to perform a new search
-                        const questName = "{encoded_quest}"; 
-                        const searchUrl = `https://wiki.guildwars.com/index.php?search=${{questName}}`;
-                        // Redirect the web view itself
-                        window.location.href = searchUrl;
-                    }}
-                </script>
-                <style>
-                    body {{ background-color: #1a1a1a; color: {ThemeColors.WHITE}; font-family: '{AppConfig.FONT_FAMILY}'; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; margin: 0; }}
-                    .card {{ background-color: #252525; border: 1px solid #444; border-radius: 16px; padding: 30px; max-width: 400px; }}
-                    .header {{ color: {ThemeColors.RED}; font-size: 24px; font-weight: bold; margin-bottom: 10px; }}
-                    .message {{ color: {ThemeColors.GREY}; font-size: 14px; margin-bottom: 20px; }}
-                    .btn {{ 
-                        background-color: rgba(212, 175, 55, 0.15); 
-                        color: {ThemeColors.GOLD}; 
-                        border: 1px solid {ThemeColors.GOLD}; 
-                        border-radius: 8px; 
-                        padding: 10px 15px; 
-                        text-decoration: none; 
-                        font-weight: 600;
-                        cursor: pointer;
-                        display: inline-block;
-                        transition: background-color 0.1s;
-                    }}
-                    .btn:hover {{ background-color: rgba(212, 175, 55, 0.25); }}
-                </style>
-                <div class="card">
-                    <div class="header">WIKI PAGE UNAVAILABLE</div>
-                    <div class="message">
-                        We couldn't load the wiki page for this quest or there is no specific entry.
-                        <br><br>
-                        Quest Name: {self.last_requested_quest_name}
-                    </div>
-                    <button class="btn" onclick="searchWiki()">Check Wiki Search</button>
-                </div>
-            """
-            
-            # Set the error HTML and remain on the view stack position 1 (web view)
+            encoded = quote(self.last_requested_quest_name)
+            error_html = f"""<script>function searchWiki() {{ window.location.href = `https://wiki.guildwars.com/index.php?search=${{'{encoded}'}}`; }}</script><style>body {{ background: #1a1a1a; color: {ThemeColors.WHITE}; font-family: 'Segoe UI'; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 90vh; }} .btn {{ background: #444; color: #fff; padding: 10px; cursor: pointer; }}</style><div><h2>WIKI UNAVAILABLE</h2><p>{self.last_requested_quest_name}</p><button class="btn" onclick="searchWiki()">Search Wiki</button></div>"""
             self.web_view.setHtml(error_html, QUrl("https://wiki.guildwars.com"))
             self.stack_widget.setCurrentIndex(1) 
-            
 
     def search_wiki_direct(self):
         text = self.search_input.text()
         self.show_loading()
-        # Store for potential error handling if this search fails
         self.last_requested_quest_name = text 
-        
-        if text:
-            encoded = quote(text)
-            url = f"https://wiki.guildwars.com/index.php?search={encoded}"
-            self.web_view.setUrl(QUrl(url))
-        else:
-            self.web_view.setUrl(QUrl("https://wiki.guildwars.com/index.php?title=Special%3ASearch"))
+        if text: self.web_view.setUrl(QUrl(f"https://wiki.guildwars.com/index.php?search={quote(text)}"))
+        else: self.web_view.setUrl(QUrl("https://wiki.guildwars.com/index.php?title=Special%3ASearch"))
 
-    def on_search_text_changed(self, text):
-        self.search_debounce_timer.start()
+    def on_search_text_changed(self, text): self.search_debounce_timer.start()
 
     def _filter_all_tabs(self):
         text = self.search_input.text().lower()
-        has_match = False
-        first_idx = -1
-        
-        for i in range(self.tabs_widget.count()):
-            tab = self.tabs_widget.widget(i)
+        found, first = False, None
+        for i in range(self.campaign_stack.count()):
+            tab = self.campaign_stack.widget(i)
             if isinstance(tab, CampaignTab):
                 tab.filter_content(text)
-                visible_items = False
-                for section in tab.sections:
-                    if section['header'].isVisible():
-                        visible_items = True; break
-                
-                if i == self.tabs_widget.currentIndex() and visible_items: has_match = True
-                if first_idx == -1 and visible_items: first_idx = i
-
-        if not has_match and first_idx != -1:
-            self.tabs_widget.setCurrentIndex(first_idx)
+                if any(s.isVisible() for s in tab.section_widgets):
+                    found = True
+                    if not first: first = tab.campaign_name
+        if not found and first: self.switch_campaign_view(first)
 
     def update_global_progress(self):
-        total_q = 0; total_c = 0
+        tc, tq = 0, 0
         for tab in self.tab_map.values():
             c, t = tab.get_progress_stats()
-            total_c += c; total_q += t
-        
-        self.global_count_label.setText(f"{total_c} / {total_q}")
-        if total_q > 0:
-            self.global_progress_bar.setMaximum(total_q)
-            self.global_progress_bar.setValue(total_c)
-        else:
-            self.global_progress_bar.setMaximum(1)
-            self.global_progress_bar.setValue(0)
+            tc += c; tq += t
+        self.global_count_label.setText(f"{tc} / {tq}")
+        self.global_progress_bar.setMaximum(tq if tq > 0 else 1)
+        self.global_progress_bar.setValue(tc)
 
     def start_sync(self):
         if self.syncer.isRunning():
-            logging.info("Sync already running.")
-            return
-
-        self.sync_button.setText("Syncing...")
-        self.sync_button.setEnabled(False)
-        snapshot = copy.deepcopy(self.data.quest_db) 
-        self.syncer.set_current_db(snapshot)
+            self.syncer.requestInterruption(); self.sync_button.setText("Stopping..."); self.sync_button.setEnabled(False); return
+        self.sync_button.setText("Cancel Sync"); self.sync_button.setEnabled(True)
+        self.syncer.set_current_db(copy.deepcopy(self.data.quest_db))
         self.syncer.start()
 
     def _on_sync_finished(self, new_db, errors):
-        self.sync_button.setText("Sync Database")
-        self.sync_button.setEnabled(True)
+        self.sync_button.setText("Sync Database"); self.sync_button.setEnabled(True)
         if new_db:
-            # Critical: Update the master quest database AND ensure status integrity
             self.data.update_quest_db(new_db) 
             self._build_tabs()
-            
-            if errors:
-                msg = "Sync completed with warnings (local data preserved):\n\n" + "\n".join(errors)
-                logging.warning(f"Sync finished with errors: {errors}")
-                CustomDialog("Sync Warnings", msg, self, is_confirmation=False).exec()
-            else:
-                logging.info("Database Synced successfully.")
-                CustomDialog("Success", "Database Synced.", self, is_confirmation=False).exec()
+            if errors: CustomDialog("Sync Warnings", "\n".join(errors), self, is_confirmation=False).exec()
+            else: CustomDialog("Success", "Database Synced.", self, is_confirmation=False).exec()
     
     def toggle_theme(self):
         self.dark_mode = not self.dark_mode
@@ -465,13 +501,9 @@ class GuildWarsTracker(QMainWindow):
         self.web_view.reload()
 
     def update_theme_btn_style(self):
-        if self.dark_mode:
-             icon_name = "moon"
-             self.theme_button.setStyleSheet("background-color: rgba(123, 104, 238, 0.2); color: #fff; border: 1px solid #7B68EE;")
-        else:
-             icon_name = "sun"
-             self.theme_button.setStyleSheet(f"background-color: {ThemeColors.GOLD}; color: #000; border: 1px solid {ThemeColors.GOLD};")
-        self.theme_button.setIcon(create_custom_icon(icon_name, ThemeColors.WHITE if self.dark_mode else "#000"))
+        icon, style = ("moon", "background-color: rgba(123, 104, 238, 0.2); color: #fff; border: 1px solid #7B68EE;") if self.dark_mode else ("sun", f"background-color: {ThemeColors.GOLD}; color: #000; border: 1px solid {ThemeColors.GOLD};")
+        self.theme_button.setStyleSheet(style)
+        self.theme_button.setIcon(create_custom_icon(icon, ThemeColors.WHITE if self.dark_mode else "#000"))
     
     def show_about(self):
         disclaimer = (
@@ -551,15 +583,10 @@ class GuildWarsTracker(QMainWindow):
         QTimer.singleShot(150, lambda: self.stack_widget.setCurrentIndex(1))
 
     def closeEvent(self, event):
-        if self.game_check_timer.isActive():
-            self.game_check_timer.stop()
-        if self.syncer.isRunning():
-            self.syncer.requestInterruption()
-            self.syncer.quit()
-            self.syncer.wait() 
-        try:
-            # PERFORMANCE: Clear memory cache on close to prevent bloat
-            self.web_view.page().profile().clearHttpCache()
-        except Exception as e:
-            logging.error(f"Failed to clear WebEngine cache on close: {e}")
+        if self.game_check_timer.isActive(): self.game_check_timer.stop()
+        if self.syncer.isRunning(): self.syncer.requestInterruption(); self.syncer.wait()
+        if self.update_checker.isRunning(): self.update_checker.requestInterruption(); self.update_checker.wait()
+        if self.downloader and self.downloader.isRunning(): self.downloader.requestInterruption(); self.downloader.wait()
+        try: self.web_view.page().profile().clearHttpCache()
+        except: pass
         event.accept()

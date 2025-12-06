@@ -30,12 +30,16 @@ def get_stylesheet():
         color: {ThemeColors.WHITE};
         border-radius: 20px;
         padding: 8px 16px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 2px solid transparent; 
         font-weight: 600;
     }}
     QPushButton:hover {{
         background-color: {ThemeColors.HOVER_WHITE};
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }}
+    QPushButton:focus {{
+        border: 2px solid {ThemeColors.GOLD};
+        outline: none;
     }}
     
     /* SYNC BUTTON */
@@ -44,6 +48,7 @@ def get_stylesheet():
         color: #111; border: none;
     }}
     QPushButton#PrimaryBtn:hover {{ background-color: #F4CF57; }}
+    QPushButton#PrimaryBtn:focus {{ border: 2px solid {ThemeColors.WHITE}; }}
     
     /* HEADER BUTTONS (CIRCULAR) */
     QPushButton#HeaderBtn {{
@@ -55,6 +60,7 @@ def get_stylesheet():
         background-color: rgba(255, 255, 255, 0.15);
         border: 1px solid {ThemeColors.GOLD};
     }}
+    QPushButton#HeaderBtn:focus {{ border: 2px solid {ThemeColors.GOLD}; }}
     
     /* DANGER BUTTON (Reset/Delete) */
     QPushButton#DangerBtn {{ 
@@ -64,6 +70,7 @@ def get_stylesheet():
         border-radius: 20px;
     }}
     QPushButton#DangerBtn:hover {{ background-color: rgba(255, 107, 107, 0.2); color: #FF8888; }}
+    QPushButton#DangerBtn:focus {{ border: 2px solid #FF8888; }}
     
     /* SMALL TOOL BTN */
     QPushButton#ToolBtn {{
@@ -73,6 +80,31 @@ def get_stylesheet():
         padding: 4px;
     }}
     QPushButton#ToolBtn:hover {{ border-color: {ThemeColors.GOLD}; }}
+    QPushButton#ToolBtn:focus {{ border: 2px solid {ThemeColors.GOLD}; }}
+    
+    /* --- MENUS (QMenu) --- */
+    QMenu {{
+        background-color: #2b2b30;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 5px;
+    }}
+    QMenu::item {{
+        background-color: transparent;
+        color: {ThemeColors.WHITE};
+        padding: 8px 25px;
+        border-radius: 4px;
+        margin: 2px;
+    }}
+    QMenu::item:selected {{
+        background-color: rgba(212, 175, 55, 0.15);
+        color: {ThemeColors.GOLD};
+    }}
+    QMenu::separator {{
+        height: 1px;
+        background: #444;
+        margin: 5px 10px;
+    }}
     
     /* --- FILTER SELECTOR WIDGET --- */
     QPushButton#FilterMainBtn {{
@@ -81,6 +113,7 @@ def get_stylesheet():
         border-radius: 12px;
     }}
     QPushButton#FilterMainBtn:hover {{ border: 1px solid {ThemeColors.GOLD}; background-color: rgba(255, 255, 255, 0.1); }}
+    
     QFrame#FilterContainer {{
         background-color: #2b2b30;
         border: 1px solid #444;
@@ -92,6 +125,7 @@ def get_stylesheet():
         background-color: transparent; color: #aaa; text-align: left; padding-left: 10px; border-radius: 6px; border: none; font-size: 12px;
     }}
     QFrame#FilterContainer QPushButton:hover {{ background-color: rgba(212, 175, 55, 0.15); color: {ThemeColors.GOLD}; }}
+    QFrame#FilterContainer QPushButton:focus {{ border: 1px solid {ThemeColors.GOLD}; }}
     
     /* --- PROFILE SELECTOR WIDGET --- */
     QPushButton#ProfileMainBtn {{
@@ -100,6 +134,7 @@ def get_stylesheet():
         border-radius: 12px;
     }}
     QPushButton#ProfileMainBtn:hover {{ border: 1px solid {ThemeColors.GOLD}; }}
+    
     QFrame#ProfileContainer {{
         background-color: #2b2b30;
         border: 1px solid #444;
@@ -111,6 +146,7 @@ def get_stylesheet():
         background-color: transparent; color: #aaa; text-align: left; padding-left: 10px; border-radius: 6px; border: none;
     }}
     QFrame#ProfileContainer QPushButton:hover {{ background-color: rgba(212, 175, 55, 0.15); color: {ThemeColors.GOLD}; }}
+    QFrame#ProfileContainer QPushButton:focus {{ border: 1px solid {ThemeColors.GOLD}; }}
 
     /* --- CHECKBOXES (TRI-STATE) --- */
     QCheckBox {{ spacing: 15px; background: transparent; }}
@@ -121,6 +157,7 @@ def get_stylesheet():
         background-color: #222; 
     }}
     QCheckBox::indicator:hover {{ border-color: {ThemeColors.WHITE}; }}
+    QCheckBox::indicator:focus {{ border-color: {ThemeColors.GOLD}; }}
     
     /* COMPLETED STATE */
     QCheckBox::indicator:checked {{ 
@@ -142,7 +179,7 @@ def get_stylesheet():
         color: {ThemeColors.WHITE};
         border: 1px solid rgba(255, 255, 255, 0.1);
     }}
-    QLineEdit:focus {{ border: 1px solid {ThemeColors.GOLD}; }}
+    QLineEdit:focus {{ border: 2px solid {ThemeColors.GOLD}; }}
     
     /* Pill Search Input used in main_window.py */
     QLineEdit#PillSearchInput {{
@@ -152,7 +189,7 @@ def get_stylesheet():
         color: {ThemeColors.WHITE};
         border: 1px solid rgba(255, 255, 255, 0.1);
     }}
-    QLineEdit#PillSearchInput:focus {{ border: 1px solid {ThemeColors.GOLD}; }}
+    QLineEdit#PillSearchInput:focus {{ border: 2px solid {ThemeColors.GOLD}; }}
 
     /* --- QUEST PILLS --- */
     QPushButton#QuestLabel {{
@@ -166,6 +203,9 @@ def get_stylesheet():
     QPushButton#QuestLabel:hover {{
         background-color: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.1);
+    }}
+    QPushButton#QuestLabel:focus {{
+        border: 2px solid {ThemeColors.GOLD};
     }}
 
     /* --- TIMESTAMP LABEL --- */
@@ -221,7 +261,6 @@ def get_stylesheet():
     """
 
 def create_custom_icon(shape, color_hex):
-    # (Rest of create_custom_icon remains the same)
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.transparent)
     painter = QPainter(pixmap)
@@ -242,6 +281,13 @@ def create_custom_icon(shape, color_hex):
         font.setFamily(AppConfig.FONT_FAMILY)
         painter.setFont(font)
         painter.drawText(QRect(0, 0, 64, 64), Qt.AlignCenter, "i")
+    elif shape == "menu":
+        brush = QBrush(QColor(color_hex))
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(26, 12, 12, 12)
+        painter.drawEllipse(26, 26, 12, 12)
+        painter.drawEllipse(26, 40, 12, 12)
     elif shape == "moon":
         path = QPainterPath()
         path.addEllipse(12, 12, 36, 36)
@@ -260,7 +306,6 @@ def create_custom_icon(shape, color_hex):
         painter.drawLine(16, 20, 48, 20)
         painter.drawLine(28, 16, 36, 16)
     elif shape == "filter":
-        # Funnel / Filter icon
         path = QPainterPath()
         path.moveTo(10, 14)
         path.lineTo(54, 14)
@@ -270,6 +315,11 @@ def create_custom_icon(shape, color_hex):
         path.lineTo(26, 36)
         path.lineTo(10, 14)
         painter.drawPath(path)
+    elif shape == "download":
+        painter.drawLine(32, 16, 32, 40)
+        painter.drawLine(20, 30, 32, 40)
+        painter.drawLine(44, 30, 32, 40)
+        painter.drawLine(16, 48, 48, 48)
         
     painter.end()
     return QIcon(pixmap)

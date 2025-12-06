@@ -3,11 +3,10 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
 from PySide6.QtGui import QPainterPath, QRegion
 from PySide6.QtCore import QRect
-import logging # Added logging
+import logging
 
 class CustomWebPage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, msg, line, source):
-        # Logging web page messages can be too noisy, keep suppressed for production
         pass
 
 class RoundedWebEngineView(QWebEngineView):
@@ -20,7 +19,6 @@ class RoundedWebEngineView(QWebEngineView):
         super().resizeEvent(event)
 
     def closeEvent(self, event):
-        # PERFORMANCE: Clear memory cache on close to prevent bloat
         try:
             self.page().profile().clearHttpCache()
             logging.info("WebEngine cache cleared on close.")

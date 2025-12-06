@@ -21,7 +21,15 @@ class WikiScraper:
         self.session.mount("http://", adapter)
         
         self.cache = DiskCache(AppConfig.CACHE_FILE, AppConfig.CACHE_EXPIRY_HOURS, AppConfig.MAX_CACHE_SIZE_MB, AppConfig.MAX_CACHE_ENTRIES)
-        self.ignore_exact = {"Quest", "Name", "Location", "Type", "Given by", "Level", "Reward", "Experience", "Gold"}
+        
+        # UPDATED: Added "logs", "logs:", and other system terms to ignore list
+        self.ignore_exact = {
+            "quest", "name", "location", "type", "given by", "level", "reward", "experience", "gold",
+            "core", "logic", "mechanics", "user interface", "controls", "game mechanics", "terminology",
+            "professions", "attributes", "skills", "builds", "edit", 
+            "logs", "logs:", "history", "recent changes", "random page", "help", "donate", 
+            "what links here", "related changes", "special pages", "printable version", "permanent link"
+        }
 
     def _sanitize_text(self, text, max_len):
         if not text: return None
@@ -35,12 +43,14 @@ class WikiScraper:
         new_db = copy.deepcopy(INITIAL_QUEST_DB)
         total_campaigns = len(CAMPAIGN_URLS)
         current_count = 0
-        error_log = [] # Track failures
+        error_log = []
+        
+        VALID_TABLE_HEADERS = {"quest", "location", "given by", "type", "level"}
         
         for campaign, url in CAMPAIGN_URLS.items():
             if interrupt_check and interrupt_check(): 
                 self.cache.close()
-                return None, None # Aborted
+                return None, None
             
             if current_count > 0: time.sleep(AppConfig.REQUEST_DELAY)
             
@@ -63,30 +73,52 @@ class WikiScraper:
                 soup = BeautifulSoup(content, 'html.parser')
                 content_root = soup.find('div', {'id': 'mw-content-text'})
                 if not content_root: content_root = soup
+                
                 tables = content_root.find_all('table')
                 
                 for table in tables:
                     if interrupt_check and interrupt_check(): 
                         self.cache.close(); return None, None
+                        
+                    # Filter: Ignore navigation boxes and catlinks
+                    classes = table.get('class', [])
+                    if 'navbox' in classes or 'catlinks' in classes or 'mw-footer' in classes:
+                        continue
+
                     headers = [th.get_text().strip() for th in table.find_all('th')]
+                    headers_lower = [h.lower() for h in headers]
+                    
+                    if not any(valid in h for h in headers_lower for valid in VALID_TABLE_HEADERS):
+                        continue
+
                     location_column_index = -1
-                    for i, h in enumerate(headers):
-                        if "location" in h.lower() or "given at" in h.lower():
+                    for i, h in enumerate(headers_lower):
+                        if "location" in h or "given at" in h:
                             location_column_index = i; break
                     
                     rows = table.find_all('tr')
                     for row in rows:
                         if interrupt_check and interrupt_check(): 
                             self.cache.close(); return None, None
-                        if row.find('th'): continue
+                        if row.find('th'): continue 
+                        
                         cols = row.find_all('td')
                         if not cols: continue
+                        
                         anchor = cols[0].find('a')
                         if not anchor: continue
                         
                         quest_name = self._sanitize_text(anchor.get_text(), AppConfig.MAX_QUEST_NAME_LEN)
-                        if not quest_name or len(quest_name) < 2 or quest_name in self.ignore_exact: continue 
                         
+                        # --- UPDATED FILTERING LOGIC ---
+                        if not quest_name or len(quest_name) < 2: continue
+                        
+                        # Normalize for checking (remove trailing colons like "Logs:")
+                        check_name = quest_name.lower().strip().rstrip(':')
+                        
+                        if check_name in self.ignore_exact: continue
+                        if "Category:" in quest_name or "Help:" in quest_name: continue
+
                         location = "Uncategorized"
                         if location_column_index != -1 and len(cols) > location_column_index:
                             raw = self._sanitize_text(cols[location_column_index].get_text(), AppConfig.MAX_LOCATION_LEN)
@@ -100,8 +132,10 @@ class WikiScraper:
                 primary_missions_set = set(item for item in fresh_campaign_list if SECTION_MARKER not in item)
                 final_side_quests = []
                 sorted_locations = sorted(side_quests_map.keys())
+                
                 if "Uncategorized" in sorted_locations:
-                    sorted_locations.remove("Uncategorized"); sorted_locations.append("Uncategorized")
+                    sorted_locations.remove("Uncategorized")
+                    sorted_locations.append("Uncategorized")
                     
                 for loc in sorted_locations:
                     unique_quests = [q for q in sorted(side_quests_map[loc]) if q not in primary_missions_set]
@@ -115,7 +149,6 @@ class WikiScraper:
             except Exception as e:
                 logging.error(f"Failed to scrape {campaign}: {e}")
                 error_log.append(f"{campaign}: {str(e)}")
-                # Fallback to existing data
                 if campaign in existing_db: new_db[campaign] = existing_db[campaign]
             
             current_count += 1
@@ -125,7 +158,7 @@ class WikiScraper:
 
 class DatabaseSyncer(QThread):
     progress_updated = Signal(int, str)
-    sync_finished = Signal(dict, list) # Changed to include error list
+    sync_finished = Signal(dict, list)
 
     def __init__(self):
         super().__init__()
@@ -142,5 +175,9 @@ class DatabaseSyncer(QThread):
                 lambda p, m: self.progress_updated.emit(p, m), 
                 lambda: self.isInterruptionRequested()
             )
-            if result: self.sync_finished.emit(result, errors)
-        except Exception: pass
+            if result is not None: 
+                self.sync_finished.emit(result, errors)
+                
+        except Exception as e:
+            logging.critical(f"Critical error in DatabaseSyncer thread: {e}", exc_info=True)
+            self.sync_finished.emit({}, [f"Critical Sync Error: {str(e)}"])
