@@ -102,11 +102,11 @@ This tool is completely **free** and is not for sale. It is an open-source, fan-
 ---
 
 
-<img width="1685" height="1076" alt="image" src="https://github.com/user-attachments/assets/2cc7e365-bab5-4d3d-9943-6407a3a61e50" />
+<img width="2560" height="1440" alt="image" src="https://github.com/user-attachments/assets/c2bf1e25-676e-4f08-a99a-92ccaf09f169" />
 
-<img width="435" height="1011" alt="image" src="https://github.com/user-attachments/assets/45c41724-4619-4454-a5d9-70cc5a3c5c82" />
+<img width="1402" height="932" alt="image" src="https://github.com/user-attachments/assets/b1a2f6eb-e4c9-4df7-a289-ca04d937f2f0" />
 
-<img width="383" height="238" alt="image" src="https://github.com/user-attachments/assets/2250afc5-7b71-46d7-b5dd-5b274ae421c3" />
+
 
 
 
