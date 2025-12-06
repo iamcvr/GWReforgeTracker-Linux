@@ -1,27 +1,43 @@
 # Guild Wars Reforge Quest Tracker
 
-## Version: 1.0.1 (The "Legendary Defender" Update)
+## Version: 1.0.2
 
 Created by: Akito
 
-A modern, minimalist desktop application designed to help Guild Wars players track their progress across all major campaigns, including the new **Legendary Defender of Ascalon (LDoA)** achievement path.
+A modern, minimalist desktop application designed to help Guild Wars players track their progress across all major Guild Wars campaigns, including **Pre-Searing** and the **Legendary Defender of Ascalon (LDoA)** path.
 
-The interface follows a clean, modern Dark UI/UX theme and runs entirely as a local executable.
+The interface follows a clean Dark UI style and runs entirely as a local executable.
 
-Yes, there is an install warning, all files are safe. Feel free to check them all out. Don't have a hundred dollars to fork over to Windows for a Certificate.
+Windows may show an install warning. All files are safe and the full source code is available for verification.
 
 ---
 
-### New Features in v1.0.1
+### New Features in v1.0.2
 
-* **Multi-Profile Support:** Track progress for **multiple characters or accounts** separately. All quest progress is saved and loaded per character profile.
-* **Legendary Defender of Ascalon (LDoA) Tracker:** Dedicated section to track LDoA milestones, including leveling goals and daily Vanguard quests.
-* **Tri-State Quest Tracking:** Mark quests as **Not Started** (Empty), **In Progress** (Green, Italic), or **Completed** (Gold, Strikethrough).
-* **Intelligent Quest Grouping:** Side quests scraped from the wiki are now automatically **grouped by their starting location** for better organization.
-* **Integrated Wiki Viewer with Dark Mode:** Loads quest details directly into the rounded right panel. Features custom CSS to provide a clean, focused **dark reading experience** without sidebars or clutter.
-* **Global Search & Filters:** Search across all campaigns simultaneously and filter quests by **Status** (Not Started, In Progress, Completed).
-* **Time Tracking:** Records and displays the exact date/time of completion when a finished quest is selected.
-* **Real-Time Data Sync:** Synchronizes and updates quest lists against the official Guild Wars Wiki in a non-blocking background thread.
+* **Direct Wiki Search:** You can now search the Guild Wars Wiki directly from the quest search bar. Type any term and press Enter.
+* **New Settings Panel:**  
+  * Export and import your progression.  
+  * Built-in update check and downloader powered by `updater.py`.  
+  * Quest History viewer.  
+  * About and Legal moved into Settings.  
+* **Old JSON Import:** Older exported progression files can now be imported into the new data structure.
+* **Keyboard Navigation Support:** General improvements for faster movement through the UI.
+* **UI Improvements:** Cleaner layout, more consistent interactions, and updated styles.
+* **Pre-Searing Support:** Complete Pre-Searing quest list added.
+* **Link Fixes:** Corrected quests that previously linked to map pages instead of the correct quest page.
+* **Removed Unnecessary Annotations:** Cleaner data loading and display.
+
+---
+
+### Additional Notes for Returning Users
+
+Older versions stored quest data locally using previous category names. After updating, you may see outdated categories on first launch.
+
+To refresh them:
+
+1. Open the tracker.
+2. Click the **Sync Database** button in the bottom-left corner.
+3. The new categories and tabs will appear correctly.
 
 ---
 
@@ -29,49 +45,69 @@ Yes, there is an install warning, all files are safe. Feel free to check them al
 
 The easiest way to use the tracker is by downloading the standalone executable:
 
-1.  **Download:** Download the latest `GWReforgeTracker.exe` file from the **Releases page** at [https://github.com/Mr-Akito/GWReforgeTracker/releases](https://github.com/Mr-Akito/GWReforgeTracker/releases).
-2.  **Run:** Place the executable in any folder and run it. The application automatically creates `gw1_data.db` and `gw1_cache.db` files to store your quest lists and progress locally.
+1. **Download:** Get the latest `GWReforgeTracker.exe` from the **Releases page** at:  
+   https://github.com/Mr-Akito/GWReforgeTracker/releases
+2. **Run:** Place the executable anywhere and launch it. The application automatically creates the local database files it needs.
+
+#### Automatic Updater
+
+Version 1.0.2 introduces an integrated updater using `updater.py`.  
+The application can now check for the newest release and download it without opening a browser.
+
+No manual setup is required.
+
+---
 
 ### Building from Source
 
 If you want to run the Python source code or build the executable yourself (requires Python 3.10+ and the packages listed in `requirements.txt`):
 
-1.  **Clone the Repository:**
+1. **Clone the Repository:**
     ```bash
-    git clone [https://github.com/Mr-Akito/GWReforgeTracker/](https://github.com/Mr-Akito/GWReforgeTracker/)
+    git clone https://github.com/Mr-Akito/GWReforgeTracker/
     cd GWReforgeTracker
     ```
-2.  **Install Dependencies:**
+
+2. **Install Dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-3.  **Run the Application:**
+
+3. **Run the Application:**
     ```bash
     python main.py
     ```
-    * **Tip:** You can launch a specific profile directly: `python main.py --profile "MyWarrior"`
-4.  **Create the EXE (using PyInstaller):**
+    *Tip: You can launch a specific profile directly:*  
+    ```bash
+    python main.py --profile "MyWarrior"
+    ```
+
+4. **Create the EXE (using PyInstaller):**
     ```bash
     pyinstaller --onefile --windowed --icon "GW_Icon.ico" --name "GWReforgeTracker" main.py
     ```
-    *(Note: This command assumes your icon file `GW_Icon.ico` is in the root directory alongside `main.py`.)*
+    *(Make sure `GW_Icon.ico` is in the project root.)*
 
 ---
 
 ### Legal Disclaimer
 
-This tool is provided completely **FREE of charge** and is not for sale. It is an open-source, fan-made project.
+This tool is completely **free** and is not for sale. It is an open-source, fan-made project.
 
-* This application is **NOT affiliated with, endorsed, sponsored, or approved by ArenaNet, LLC or NCSoft Corporation**.
+* This application is **not affiliated with, endorsed by, sponsored by, or approved by ArenaNet, LLC or NCSoft Corporation**.
 * "Guild Wars", "ArenaNet", and "NCSoft" are trademarks or registered trademarks of NCSoft Corporation.
-* All game content, quest names, images, and wiki text displayed within this application are the property of their respective owners and the Guild Wars Wiki community (licensed under GNU FDL 1.2).
-* The application's code author is Akito.
+* All game content, quest names, images, and wiki text displayed in this application belong to their respective owners and the Guild Wars Wiki community (licensed under GNU FDL 1.2).
+* All application code was written by Akito.
+
+---
+
 
 <img width="1685" height="1076" alt="image" src="https://github.com/user-attachments/assets/2cc7e365-bab5-4d3d-9943-6407a3a61e50" />
 
 <img width="435" height="1011" alt="image" src="https://github.com/user-attachments/assets/45c41724-4619-4454-a5d9-70cc5a3c5c82" />
 
 <img width="383" height="238" alt="image" src="https://github.com/user-attachments/assets/2250afc5-7b71-46d7-b5dd-5b274ae421c3" />
+
 
 
 
