@@ -12,7 +12,7 @@ Track separate quest progress for multiple characters.
 Mark quests as:
 - `[ ]` Not Started
 - `[~]` In Progress
-- `[X]` Completed
+- `[✔]` Completed
 
 ### ✔ Campaign navigation
 Supports all major Guild Wars campaigns:
@@ -24,9 +24,11 @@ Supports all major Guild Wars campaigns:
 - LDoA path
 
 ### ✔ Side-quest grouping
-Side quests are automatically grouped under section headers such as:
+Side quests are automatically grouped under section headers.
 
-`=== LAKESIDE COUNTY ===`
+### ✔ Collapsible Sections with Icons
+- ▾ expanded
+- ▸ collapsed
 
 ### ✔ Smart search
 When searching, only sections that contain matching quests appear — keeping the UI clean and relevant.
