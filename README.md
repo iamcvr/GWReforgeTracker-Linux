@@ -66,78 +66,79 @@ To fix this, the Linux fork:
 
 # Installation Guide
 
-This installation method does not modify your host system.
-Everything is contained inside a Distrobox environment.
+This guide uses **Distrobox** to keep your system clean. The entire app runs inside a container.
+
+## Part 1: Prerequisites
+*(Do this once)*
 
 ### 1. Install Distrobox
-```
+Run this on your host system:
+```bash
 curl -s https://raw.githubusercontent.com/89luca89/distrobox/main/install | sh
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 2.Create and enter the container
-```
+### 2. Set up the Container
+Create an Ubuntu container for the tracker:
+```bash
 distrobox-create -n gwtracker-box -i docker.io/library/ubuntu:24.04
 distrobox-enter gwtracker-box
 ```
 
-### 3. Install Python + Tkinter inside the container
-```
+### 3. Install System Dependencies
+**Inside the container**, install Python and Tkinter:
+```bash
 sudo apt update
 sudo apt install -y python3 python3-tk python3-pip python3-venv
 ```
 
-### 4. Clone the repo
-Inside the container:
-```
+### 4. Clone the Repository
+**Inside the container**, download the tracker source code:
+```bash
 git clone https://github.com/YOUR_USERNAME/GWReforgeTracker-Linux.git
 cd GWReforgeTracker-Linux
 ```
 
-### 5. Create a Python virtual environment
-```
-python3 -m venv .venv
-source .venv/bin/activate
-```
+---
 
-Install required Python packages:
-```
-pip install requests beautifulsoup4 customtkinter
-```
+## Part 2: Automated Installation (Recommended)
+This script sets up the Python environment and creates your desktop shortcut automatically.
 
-### 6. Installation & Integration (Automated)
-
-**Tested on Fedora/Bazzite/Bluefin (Distrobox)**
-
-Run the included installer to set up the Python environment and export the shortcuts automatically:
-
+**Run explicitly inside the container:**
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-**That's it!**
-- Run `gwtracker` from any terminal.
-- Launch **GW Reforge Tracker** from your app menu.
+**Done!**
+- Run `gwtracker` from any terminal on your host.
+- Or launch **GW Reforge Tracker** from your Application Menu.
 
 ---
 
-### Manual Installation (If script fails)
-If you prefer to do it manually:
+## Part 3: Manual Installation
+*Use this only if the automated script fails.*
 
-1. **Setup Python:**
+1. **Create Python Environment:**
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
     pip install requests beautifulsoup4 customtkinter
     ```
-2. **Export Command:**
+
+2. **Test the App:**
+    ```bash
+    python linux_tracker.py
+    ```
+
+3. **Export Command-Line Tool:**
     ```bash
     chmod +x run_linux.sh
     distrobox-export --bin $(pwd)/run_linux.sh --export-label gwtracker
     ```
-3. **Export Shortcut:**
+
+4. **Export Desktop Shortcut:**
     ```bash
     cp gwtracker.desktop.template gwtracker.desktop
     distrobox-export --app ./gwtracker.desktop
