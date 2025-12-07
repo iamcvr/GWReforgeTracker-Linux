@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GW Reforge Tracker
+Comment=Guild Wars Campaign Tracker (Linux)
+# The Exec path will be handled by distrobox-export or must be set to the absolute path of run_linux.sh
+Exec=./run_linux.sh
+Icon=./GW_Icon.png
+Terminal=false
+Categories=Game;Utility;

@@ -106,63 +106,32 @@ Install required Python packages:
 pip install requests beautifulsoup4 customtkinter
 ```
 
-### 6. Run the tracker
-```
-python linux_tracker.py
+### 6. Installation & Integration
+
+**Step 1: Make scripts executable**
+Inside the container (where you cloned the repo):
+```bash
+chmod +x run_linux.sh
 ```
 
-The app window should appear.
-
-### Optional: Create a System Launcher (Desktop App)
-
-To make launching easy, create a small wrapper script on your host system:
+**Step 2: Export to Host (CLI Command)**
+This creates a `gwtracker` command on your host system:
+```bash
+distrobox-export --bin $(pwd)/run_linux.sh --export-label gwtracker
 ```
-/usr/local/bin/gwtracker
-#!/usr/bin/env bash
-distrobox-enter -n gwtracker-box -- bash -lc '
-cd "$HOME/GWReforgeTracker-Linux" &&
-source .venv/bin/activate &&
-python linux_tracker.py
-'
-```
-Make it executable:
+You can now run `gwtracker` from any terminal on your host.
 
-```
-sudo chmod +x /usr/local/bin/gwtracker
-```
+**Step 3: Export Desktop Shortcut (App Menu)**
+1. Copy the template:
+   ```bash
+   cp gwtracker.desktop.template gwtracker.desktop
+   ```
+2. Export it to your host's application menu:
+   ```bash
+   distrobox-export --app ./gwtracker.desktop
+   ```
 
-Now you can launch the tracker simply with:
-
-```
-gwtracker
-```
-
-### Optional: Add a desktop launcher
-
-Create:
-
-```
-~/.local/share/applications/gwtracker.desktop
-```
-
-
-Contents:
-```
-[Desktop Entry]
-Type=Application
-Name=GW Reforge Quest Tracker (Linux)
-Exec=gwtracker
-Icon=/home/USERNAME/GWReforgeTracker-Linux/GW_Icon.png
-Terminal=false
-Categories=Game;
-```
-
-Make it executable:
-```
-chmod +x ~/.local/share/applications/gwtracker.desktop
-```
-
-It will now appear in your application menu.
+The **GW Reforge Tracker** icon will now appear in your system's app launcher.
 
 # Troubleshooting
 ### ❌ “No module named tkinter”
