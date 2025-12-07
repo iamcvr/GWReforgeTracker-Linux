@@ -3,10 +3,10 @@ import os
 
 class AppConfig:
     APP_TITLE = "Guild Wars Reforge Quest Tracker" 
-    APP_VERSION = "1.0.2" 
+    APP_VERSION = "1.1" 
     FONT_FAMILY = "Segoe UI" 
     
-    GITHUB_REPO = "Mr-Akito/GWReforgeTracker"
+    GITHUB_REPO = "iamcvr/GWReforgeTracker-Linux"
     GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     
     DB_FILE = "gw1_data.db"
@@ -58,6 +58,16 @@ class ThemeColors:
     DARK_BG_GRADIENT_END = "#1E1E24"
     PANEL_BG = "rgba(35, 35, 40, 0.9)"
     HOVER_WHITE = "rgba(255, 255, 255, 0.1)"
+    
+    # Linux/Tkinter Palette
+    DARK_BG = "#1e1e1e"
+    DARK_PANEL = "#252526"
+    DARK_ACCENT = "#007acc"
+    DARK_TEXT = "#ffffff"
+    DARK_SUBTEXT = "#cccccc"
+    DARK_ENTRY = "#3c3c3c"
+    DARK_LISTBG = "#1e1e1e"
+    DARK_LISTSEL = "#094771"
 
 class QuestStatus:
     NOT_STARTED = 0

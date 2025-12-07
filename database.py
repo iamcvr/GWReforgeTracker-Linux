@@ -259,6 +259,12 @@ class DataManager:
         self.quest_db = new_db
         self._save_quest_db(new_db)
 
+    # --- API ALIASES ---
+    def get_quests_for_campaign(self, campaign): return self.quest_db.get(campaign, [])
+    def get_history(self): return self.get_completion_history()
+    def import_profile(self, path): return self.import_profile_from_json(path)
+    def export_profile(self, path): return self.export_profile_to_json(path)
+
     # --- NEW: ANALYTICS & EXPORT ---
     def get_completion_history(self):
         """Returns list of (quest_name, timestamp) sorted by most recent."""

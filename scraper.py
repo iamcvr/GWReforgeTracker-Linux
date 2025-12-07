@@ -94,6 +94,17 @@ class WikiScraper:
 
         return text
 
+    def get_quest_url(self, quest_name: str) -> str:
+        """Generate a valid wiki URL for the given quest name."""
+        if not quest_name:
+            return "https://wiki.guildwars.com/wiki/Main_Page"
+        
+        # Basic slugification: spaces to underscores, handle special chars if needed
+        # The GW Wiki is pretty forgiving, usually just spaces->underscores
+        slug = quest_name.replace(" ", "_").strip()
+        # Handle some edge cases if necessary, but usually raw name works
+        return f"https://wiki.guildwars.com/wiki/{slug}"
+
     def run_sync(
         self,
         existing_db: dict,
