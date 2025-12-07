@@ -68,75 +68,97 @@ This installation method does not modify your host system.
 Everything is contained inside a Distrobox environment.
 
 ### 1. Install Distrobox
-`curl -s https://raw.githubusercontent.com/89luca89/distrobox/main/install | sh
+```
+curl -s https://raw.githubusercontent.com/89luca89/distrobox/main/install | sh
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc`
+source ~/.bashrc
+```
 
 ### 2.Create and enter the container
-`distrobox-create -n gwtracker-box -i docker.io/library/ubuntu:24.04
-distrobox-enter gwtracker-box`
+```
+distrobox-create -n gwtracker-box -i docker.io/library/ubuntu:24.04
+distrobox-enter gwtracker-box
+```
 
 ### 3. Install Python + Tkinter inside the container
-`sudo apt update
-sudo apt install -y python3 python3-tk python3-pip python3-venv`
+```
+sudo apt update
+sudo apt install -y python3 python3-tk python3-pip python3-venv
+```
 
 ### 4. Clone the repo
 Inside the container:
-`git clone https://github.com/YOUR_USERNAME/GWReforgeTracker-Linux.git
-cd GWReforgeTracker-Linux`
+```
+git clone https://github.com/YOUR_USERNAME/GWReforgeTracker-Linux.git
+cd GWReforgeTracker-Linux
+```
 
 ### 5. Create a Python virtual environment
-`python3 -m venv .venv
-source .venv/bin/activate`
+```
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
 Install required Python packages:
-
-`pip install requests beautifulsoup4`
+```
+pip install requests beautifulsoup4
+```
 
 ### 6. Run the tracker
-`python linux_tracker.py`
+```
+python linux_tracker.py
+```
 
 The app window should appear.
 
 ### Optional: Create a System Launcher (Desktop App)
 
 To make launching easy, create a small wrapper script on your host system:
-
-`/usr/local/bin/gwtracker
+```
+/usr/local/bin/gwtracker
 #!/usr/bin/env bash
 distrobox-enter -n gwtracker-box -- bash -lc '
 cd "$HOME/GWReforgeTracker-Linux" &&
 source .venv/bin/activate &&
 python linux_tracker.py
-'`
+'
+```
 Make it executable:
 
-`sudo chmod +x /usr/local/bin/gwtracker`
+```
+sudo chmod +x /usr/local/bin/gwtracker
+```
 
 Now you can launch the tracker simply with:
 
-`gwtracker`
+```
+gwtracker
+```
 
 ### Optional: Add a desktop launcher
 
 Create:
 
-`~/.local/share/applications/gwtracker.desktop`
+```
+~/.local/share/applications/gwtracker.desktop
+```
 
 
 Contents:
-
-`[Desktop Entry]
+```
+[Desktop Entry]
 Type=Application
 Name=GW Reforge Quest Tracker (Linux)
 Exec=gwtracker
 Icon=/home/USERNAME/GWReforgeTracker-Linux/GW_Icon.png
 Terminal=false
-Categories=Game;`
+Categories=Game;
+```
 
 Make it executable:
-
-`chmod +x ~/.local/share/applications/gwtracker.desktop`
+```
+chmod +x ~/.local/share/applications/gwtracker.desktop
+```
 
 It will now appear in your application menu.
 
@@ -159,7 +181,8 @@ Original Windows application:
 https://github.com/Mr-Akito/GWReforgeTracker
 
 Linux rewrite & scraper refactor:
-@iamcvr
+[@iamcvr](https://github.com/iamcvr/)
 
 This is a fan-made, open-source utility.
+
 Guild Wars and related assets belong to ArenaNet & NCSoft.

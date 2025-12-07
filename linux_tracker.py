@@ -29,10 +29,20 @@ from scraper import WikiScraper
 
 logging.basicConfig(level=logging.INFO)
 
+DARK_BG = "#1e1e1e"
+DARK_PANEL = "#252526"
+DARK_ACCENT = "#007acc"
+DARK_TEXT = "#ffffff"
+DARK_SUBTEXT = "#cccccc"
+DARK_ENTRY = "#3c3c3c"
+DARK_LISTBG = "#1e1e1e"
+DARK_LISTSEL = "#094771"
 
 class LinuxQuestTracker(tk.Tk):
     def __init__(self):
         super().__init__()
+        
+        self._setup_dark_theme()
 
         self.title(f"{AppConfig.APP_TITLE} (Linux)")
         self.geometry("1200x800")
@@ -48,6 +58,9 @@ class LinuxQuestTracker(tk.Tk):
         self.search_var = tk.StringVar()
         self.profile_var = tk.StringVar(value=self.data.current_profile_name)
 
+        self.collapsed_sections = {}  # campaign_name -> set of header lines
+        self.row_meta = []  # one entry per row in quest_list
+
         # Build UI
         self._build_layout()
         self._load_profiles()
@@ -55,6 +68,126 @@ class LinuxQuestTracker(tk.Tk):
         self._refresh_quest_list()
 
     # ---------------- UI LAYOUT ----------------
+    def _setup_dark_theme(self):
+        style = ttk.Style(self)
+
+        # Use a theme that respects our color overrides
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            # Fall back to current theme if clam is missing
+            pass
+
+        # General backgrounds
+        self.configure(bg=DARK_BG)
+        style.configure("TFrame", background=DARK_BG)
+        style.configure("TLabel", background=DARK_BG, foreground=DARK_TEXT)
+        style.configure("TButton", background=DARK_PANEL, foreground=DARK_TEXT)
+        style.configure(
+            "TCombobox",
+            fieldbackground=DARK_ENTRY,
+            foreground=DARK_TEXT,
+            background=DARK_PANEL,
+        )
+        style.map(
+            "TCombobox",
+            fieldbackground=[
+                ("readonly", DARK_ENTRY),
+                ("!readonly", DARK_ENTRY),
+                ("active", DARK_ENTRY),
+                ("focus", DARK_ENTRY),
+            ],
+            foreground=[
+                ("readonly", DARK_TEXT),
+                ("!readonly", DARK_TEXT),
+                ("active", DARK_TEXT),
+                ("focus", DARK_TEXT),
+            ],
+        )
+        # --- Combobox Arrow Styling ---
+        # Force arrow background + hover color
+        style.element_create(
+            "CustomCombobox.downarrow", "from", "clam"
+        )
+
+        style.layout(
+            "TCombobox",
+            [
+                ("Combobox.border", {
+                    "sticky": "nswe",
+                    "children": [
+                        ("Combobox.padding", {
+                            "sticky": "nswe",
+                            "children": [
+                                ("CustomCombobox.downarrow", {
+                                    "side": "right",
+                                    "sticky": "ns"
+                                }),
+                                ("Combobox.textarea", {
+                                    "sticky": "nswe"
+                                })
+                            ]
+                        })
+                    ]
+                })
+            ]
+        )
+        # Arrow should always be white
+        style.configure(
+            "TCombobox",
+            arrowsize=12,
+            arrowcolor=DARK_TEXT,  # white
+        )
+
+        # Normal state → arrow box black
+        # Hover (active) → arrow box blue
+        style.map(
+            "TCombobox",
+            arrowcolor=[
+                ("!disabled", DARK_TEXT),
+                ("active", DARK_TEXT),
+                ("focus", DARK_TEXT),
+            ],
+            fieldbackground=[
+                ("readonly", DARK_ENTRY),
+                ("!readonly", DARK_ENTRY),
+                ("active", DARK_ENTRY),
+                ("focus", DARK_ENTRY),
+            ],
+            background=[
+                ("active", DARK_ACCENT),   # hover blue
+                ("!active", DARK_ENTRY),   # idle black
+            ]
+        )
+
+        style.map("TButton", background=[("active", DARK_ACCENT)])
+        
+
+        # Entry / Combobox
+        style.configure(
+            "TEntry",
+            fieldbackground=DARK_ENTRY,
+            foreground=DARK_TEXT,
+        )
+        style.configure(
+            "TCombobox",
+            fieldbackground=DARK_ENTRY,
+            foreground=DARK_TEXT,
+            background=DARK_PANEL,
+        )
+
+        # Treeview (history window)
+        style.configure(
+            "Treeview",
+            background=DARK_PANEL,
+            fieldbackground=DARK_PANEL,
+            foreground=DARK_TEXT,
+        )
+        style.configure(
+            "Treeview.Heading",
+            background=DARK_PANEL,
+            foreground=DARK_TEXT,
+        )    
 
     def _build_layout(self):
         # Top bar (profiles + search + actions)
@@ -102,7 +235,21 @@ class LinuxQuestTracker(tk.Tk):
         left.pack(side=tk.LEFT, fill=tk.Y)
 
         ttk.Label(left, text="Campaigns", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 4))
-        self.campaign_list = tk.Listbox(left, height=10, exportselection=False)
+        max_campaign_len = max(len(name) for name in CAMPAIGN_ORDER)
+        self.campaign_list = tk.Listbox(
+            left,
+            height=10,
+            width=max_campaign_len,
+            exportselection=False,
+            bg=DARK_LISTBG,
+            fg=DARK_TEXT,
+            selectbackground=DARK_LISTSEL,
+            selectforeground=DARK_TEXT,
+            highlightthickness=0,
+            borderwidth=0,
+            activestyle="none",
+        )
+
         self.campaign_list.pack(fill=tk.Y, expand=False)
         for camp in CAMPAIGN_ORDER:
             self.campaign_list.insert(tk.END, camp)
@@ -118,7 +265,15 @@ class LinuxQuestTracker(tk.Tk):
             center,
             selectmode=tk.SINGLE,
             exportselection=False,
+            bg=DARK_LISTBG,
+            fg=DARK_TEXT,
+            selectbackground=DARK_LISTSEL,
+            selectforeground=DARK_TEXT,
+            highlightthickness=0,
+            borderwidth=0,
+            activestyle="none",
         )
+
         self.quest_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.quest_list.bind("<<ListboxSelect>>", self._on_quest_selected)
 
@@ -144,9 +299,22 @@ class LinuxQuestTracker(tk.Tk):
 
         ttk.Button(right, text="Open in Wiki", command=self._open_in_wiki).pack(fill=tk.X, pady=(0, 4))
         ttk.Button(right, text="Reset Campaign", command=self._reset_campaign).pack(fill=tk.X, pady=(10, 4))
+        
+        #ttk.Label(right, text="Sections:").pack(anchor="w", pady=(15, 2))
+        ttk.Label(right, text="Section Control", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(15, 2))
+        btn_expand_all = ttk.Button(
+            right,
+            text="Expand All",
+            command=self._expand_all_sections,
+        )
+        btn_expand_all.pack(fill="x", pady=1)
 
-        self.selected_label = ttk.Label(right, text="Selected: (none)", wraplength=200, justify="left")
-        self.selected_label.pack(fill=tk.X, pady=(10, 0))
+        btn_collapse_all = ttk.Button(
+            right,
+            text="Collapse All",
+            command=self._collapse_all_sections,
+        )
+        btn_collapse_all.pack(fill="x", pady=1)
 
     # ---------------- PROFILES ----------------
 
@@ -217,6 +385,32 @@ class LinuxQuestTracker(tk.Tk):
         self.campaign_list.selection_set(idx)
         self.campaign_list.see(idx)
 
+    def _toggle_section(self, header_line: str):
+        """Toggle collapsed/expanded state for a section header in the current campaign."""
+        camp = self.current_campaign
+        coll = self.collapsed_sections.setdefault(camp, set())
+        if header_line in coll:
+            coll.remove(header_line)
+        else:
+            coll.add(header_line)
+        self._refresh_quest_list()
+
+    def _collapse_all_sections(self):
+        """Collapse all section headers for the current campaign."""
+        quests = self.data.quest_db.get(self.current_campaign, [])
+        headers = {q for q in quests if SECTION_MARKER in q}
+        if headers:
+            self.collapsed_sections[self.current_campaign] = set(headers)
+        else:
+            self.collapsed_sections[self.current_campaign] = set()
+        self._refresh_quest_list()
+
+    def _expand_all_sections(self):
+        """Expand all section headers for the current campaign."""
+        if self.current_campaign in self.collapsed_sections:
+            self.collapsed_sections[self.current_campaign].clear()
+        self._refresh_quest_list()
+
     def _on_campaign_selected(self, event=None):
         sel = self.campaign_list.curselection()
         if not sel:
@@ -224,7 +418,6 @@ class LinuxQuestTracker(tk.Tk):
         idx = sel[0]
         self.current_campaign = CAMPAIGN_ORDER[idx]
         self.selected_quest = None
-        self.selected_label.config(text="Selected: (none)")
         self._refresh_quest_list()
         self._set_status_text(f"Switched to campaign: {self.current_campaign}")
 
@@ -235,21 +428,38 @@ class LinuxQuestTracker(tk.Tk):
 
         self.quest_list.delete(0, tk.END)
         self.visible_quests = []
+        self.row_meta = []
 
-        # -------- No search: original behaviour --------
+        collapsed = self.collapsed_sections.get(self.current_campaign, set())
+
+        # -------- No search: respect collapsed sections --------
         if not search:
+            skipping = False  # whether we are currently inside a collapsed section
+
             for q in quests:
                 # Section headers
                 if SECTION_MARKER in q:
+                    header_line = q
                     header_text = q.replace(SECTION_MARKER, "").strip()
                     if not header_text:
                         header_text = "---"
-                    display = f"=== {header_text} ==="
+
+                    is_collapsed = header_line in collapsed
+                    icon = "▸" if is_collapsed else "▾"
+                    display = f"{icon} {header_text.upper()}"
                     self.quest_list.insert(tk.END, display)
                     self.visible_quests.append(None)
+                    self.row_meta.append({"type": "header", "header": header_line})
+
+                    # Determine if this section should be collapsed
+                    skipping = is_collapsed
                     continue
 
                 # Real quest entries
+                if skipping:
+                    # We are inside a collapsed section, skip showing these quests
+                    continue
+
                 info = status_map.get(q, {"status": QuestStatus.NOT_STARTED, "timestamp": None})
                 status = info.get("status", QuestStatus.NOT_STARTED)
 
@@ -258,14 +468,16 @@ class LinuxQuestTracker(tk.Tk):
                 elif status == QuestStatus.IN_PROGRESS:
                     prefix = "[~]"
                 else:
-                    prefix = "[X]"
+                    prefix = "[✔]"
 
-                display = f"{prefix} {q}"
+                display = f"\u00A0\u00A0\u00A0\u00A0\u00A0{prefix} {q}"
                 self.quest_list.insert(tk.END, display)
                 self.visible_quests.append(q)
+                self.row_meta.append({"type": "quest", "name": q})
+
             return
 
-        # -------- Search active: only show relevant sections --------
+        # -------- Search active: ignore collapsed state, only show relevant sections --------
 
         # First, group quests by section header
         sections: list[tuple[str | None, list[str]]] = []
@@ -298,9 +510,12 @@ class LinuxQuestTracker(tk.Tk):
                 header_text = header.replace(SECTION_MARKER, "").strip()
                 if not header_text:
                     header_text = "---"
-                display = f"=== {header_text} ==="
+                # In search mode we always treat sections as expanded
+                icon = "▾"
+                display = f"{icon} {header_text.upper()}"
                 self.quest_list.insert(tk.END, display)
                 self.visible_quests.append(None)
+                self.row_meta.append({"type": "header", "header": header})
 
             # Render only matching quests
             for q in filtered_qs:
@@ -312,35 +527,65 @@ class LinuxQuestTracker(tk.Tk):
                 elif status == QuestStatus.IN_PROGRESS:
                     prefix = "[~]"
                 else:
-                    prefix = "[X]"
+                    prefix = "[✔]"
 
-                display = f"{prefix} {q}"
+                display = f"\u00A0\u00A0\u00A0\u00A0\u00A0{prefix} {q}"
                 self.quest_list.insert(tk.END, display)
                 self.visible_quests.append(q)
-
+                self.row_meta.append({"type": "quest", "name": q})
 
     def _on_quest_selected(self, event=None):
         sel = self.quest_list.curselection()
         if not sel:
             self.selected_quest = None
-            self.selected_label.config(text="Selected: (none)")
             return
-        idx = sel[0]
-        quest = self.visible_quests[idx]
-        if quest is None:
-            # Section header clicked
-            self.selected_quest = None
-            self.selected_label.config(text="Selected: (none)")
-            return
-        self.selected_quest = quest
-        self.selected_label.config(text=f"Selected: {quest}")
 
-    def _set_status(self, status):
-        if not self.selected_quest:
-            messagebox.showinfo("Quest Status", "Please select a quest first.")
+        idx = sel[0]
+
+        # If we somehow got out of sync, guard against index error
+        if idx >= len(self.row_meta):
+            self.selected_quest = None
             return
+
+        meta = self.row_meta[idx]
+
+        # Clicking a header toggles collapse/expand (only when not searching)
+        if meta["type"] == "header":
+            # Don't let header clicks do anything while searching;
+            # search results ignore collapsed state anyway.
+            if self.search_var.get().strip():
+                return
+
+            header_line = meta["header"]
+            self.selected_quest = None
+            self._toggle_section(header_line)
+            return
+
+        # Normal quest row
+        quest = meta["name"]
+        self.selected_quest = quest
+        
+    def _set_status(self, status: int):
+        """Set the status of the currently selected quest and refresh the view."""
+        if not self.selected_quest:
+            messagebox.showinfo("Status", "Please select a quest first.")
+            return
+
+        # Update DB
         self.data.set_status(self.selected_quest, status)
+
+        # Refresh UI
         self._refresh_quest_list()
+
+        # Friendly status text
+        if status == QuestStatus.NOT_STARTED:
+            label = "Not Started"
+        elif status == QuestStatus.IN_PROGRESS:
+            label = "In Progress"
+        else:
+            label = "Completed"
+
+        self._set_status_text(f"Marked '{self.selected_quest}' as {label}.")
 
     # ---------------- WIKI & CAMPAIGN ACTIONS ----------------
 
@@ -444,6 +689,7 @@ class LinuxQuestTracker(tk.Tk):
         dialog = tk.Toplevel(self)
         dialog.title("Quest History")
         dialog.geometry("600x400")
+        dialog.configure(bg=DARK_BG)
 
         tree = ttk.Treeview(dialog, columns=("quest", "time"), show="headings")
         tree.heading("quest", text="Quest")
