@@ -1,113 +1,165 @@
-# Guild Wars Reforge Quest Tracker
+# Guild Wars Reforge Quest Tracker — Linux Edition
 
-## Version: 1.0.2
+A Linux-native fork of the Guild Wars Reforge Quest Tracker, rewritten to remove the Windows-only PySide6/Qt dependencies and run cleanly across all Linux distributions.
 
-Created by: Akito
+This version uses a lightweight Tkinter UI, a pure-Python wiki scraper, and runs seamlessly inside a Distrobox container so it never pollutes your host system.
 
-A modern, minimalist desktop application designed to help Guild Wars players track their progress across all major Guild Wars campaigns, including **Pre-Searing** and the **Legendary Defender of Ascalon (LDoA)** path.
+## Features
+### ✔ Multi-profile support
+Track separate quest progress for multiple characters.
 
-The interface follows a clean Dark UI style and runs entirely as a local executable.
+### ✔ Quest status tracking
+Mark quests as:
+- `[ ]` Not Started
+- `[~]` In Progress
+- `[X]` Completed
 
-Windows may show an install warning. All files are safe and the full source code is available for verification.
+### ✔ Campaign navigation
+Supports all major Guild Wars campaigns:
+- Prophecies
+- Factions
+- Nightfall
+- Eye of the North
+- Pre-Searing
+- LDoA path
 
----
+### ✔ Side-quest grouping
+Side quests are automatically grouped under section headers such as:
 
-### New Features in v1.0.2
+`=== LAKESIDE COUNTY ===`
 
-* **Direct Wiki Search:** You can now search the Guild Wars Wiki directly from the quest search bar. Type any term and press Enter.
-* **New Settings Panel:**  
-  * Export and import your progression.  
-  * Built-in update check and downloader powered by `updater.py`.  
-  * Quest History viewer.  
-  * About and Legal moved into Settings.  
-* **Old JSON Import:** Older exported progression files can now be imported into the new data structure.
-* **Keyboard Navigation Support:** General improvements for faster movement through the UI.
-* **UI Improvements:** Cleaner layout, more consistent interactions, and updated styles.
-* **Pre-Searing Support:** Complete Pre-Searing quest list added.
-* **Link Fixes:** Corrected quests that previously linked to map pages instead of the correct quest page.
-* **Removed Unnecessary Annotations:** Cleaner data loading and display.
+### ✔ Smart search
+When searching, only sections that contain matching quests appear — keeping the UI clean and relevant.
 
----
+### ✔ Pure-Python Guild Wars Wiki sync
+A rewritten scraper:
+- Downloads updated quest information from the wiki
+- Extracts mission + side-quest lists
+- Groups quests by region
+- Caches pages to reduce wiki load
+- Avoids all Qt/QThread dependencies
+- Works anywhere Python runs
 
-### Additional Notes for Returning Users
+### ✔ Import / Export
+Profiles can be backed up or restored using simple JSON files.
 
-Older versions stored quest data locally using previous category names. After updating, you may see outdated categories on first launch.
+### ✔ Quest completion history
+View timestamps of all quests you've completed.
 
-To refresh them:
+### ✔ “Open in Wiki”
+Opens selected quests directly in your browser.
 
-1. Open the tracker.
-2. Click the **Sync Database** button in the bottom-left corner.
-3. The new categories and tabs will appear correctly.
+### Why a Linux Edition?
+The original project relies heavily on PySide6 + QtWebEngine, which causes several issues on Linux:
+- QtWebEngine wheels often missing for certain Python versions
+- PySide6 crashes or segfaults under Wine/Proton
+- DLL load errors when running the Windows EXE
+- Native Linux PySide6 packages incompatible with upstream code
 
----
+To fix this, the Linux fork:
+- Replaces Qt entirely
+- Replaces the threaded scraper with a pure Python version
+- Uses Tkinter (built-in GUI toolkit)
+- Runs in a clean Python environment via Distrobox
 
-### Download and Installation (Windows EXE)
+# Installation Guide
 
-The easiest way to use the tracker is by downloading the standalone executable:
+This installation method does not modify your host system.
+Everything is contained inside a Distrobox environment.
 
-1. **Download:** Get the latest `GWReforgeTracker.exe` from the **Releases page** at:  
-   https://github.com/Mr-Akito/GWReforgeTracker/releases
-2. **Run:** Place the executable anywhere and launch it. The application automatically creates the local database files it needs.
+### 1. Install Distrobox
+`curl -s https://raw.githubusercontent.com/89luca89/distrobox/main/install | sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc`
 
-#### Automatic Updater
+### 2.Create and enter the container
+`distrobox-create -n gwtracker-box -i docker.io/library/ubuntu:24.04
+distrobox-enter gwtracker-box`
 
-Version 1.0.2 introduces an integrated updater using `updater.py`.  
-The application can now check for the newest release and download it without opening a browser.
+### 3. Install Python + Tkinter inside the container
+`sudo apt update
+sudo apt install -y python3 python3-tk python3-pip python3-venv`
 
-No manual setup is required.
+### 4. Clone the repo
+Inside the container:
+`git clone https://github.com/YOUR_USERNAME/GWReforgeTracker-Linux.git
+cd GWReforgeTracker-Linux`
 
----
+### 5. Create a Python virtual environment
+`python3 -m venv .venv
+source .venv/bin/activate`
 
-### Building from Source
+Install required Python packages:
 
-If you want to run the Python source code or build the executable yourself (requires Python 3.10+ and the packages listed in `requirements.txt`):
+`pip install requests beautifulsoup4`
 
-1. **Clone the Repository:**
-    ```bash
-    git clone https://github.com/Mr-Akito/GWReforgeTracker/
-    cd GWReforgeTracker
-    ```
+### 6. Run the tracker
+`python linux_tracker.py`
 
-2. **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+The app window should appear.
 
-3. **Run the Application:**
-    ```bash
-    python main.py
-    ```
-    *Tip: You can launch a specific profile directly:*  
-    ```bash
-    python main.py --profile "MyWarrior"
-    ```
+### Optional: Create a System Launcher (Desktop App)
 
-4. **Create the EXE (using PyInstaller):**
-    ```bash
-    pyinstaller --onefile --windowed --icon "GW_Icon.ico" --name "GWReforgeTracker" main.py
-    ```
-    *(Make sure `GW_Icon.ico` is in the project root.)*
+To make launching easy, create a small wrapper script on your host system:
 
----
+`/usr/local/bin/gwtracker
+#!/usr/bin/env bash
+distrobox-enter -n gwtracker-box -- bash -lc '
+cd "$HOME/GWReforgeTracker-Linux" &&
+source .venv/bin/activate &&
+python linux_tracker.py
+'`
+Make it executable:
 
-### Legal Disclaimer
+`sudo chmod +x /usr/local/bin/gwtracker`
 
-This tool is completely **free** and is not for sale. It is an open-source, fan-made project.
+Now you can launch the tracker simply with:
 
-* This application is **not affiliated with, endorsed by, sponsored by, or approved by ArenaNet, LLC or NCSoft Corporation**.
-* "Guild Wars", "ArenaNet", and "NCSoft" are trademarks or registered trademarks of NCSoft Corporation.
-* All game content, quest names, images, and wiki text displayed in this application belong to their respective owners and the Guild Wars Wiki community (licensed under GNU FDL 1.2).
-* All application code was written by Akito.
+`gwtracker`
 
----
+### Optional: Add a desktop launcher
 
-<img width="1402" height="932" alt="image" src="https://github.com/user-attachments/assets/b1a2f6eb-e4c9-4df7-a289-ca04d937f2f0" />
+Create:
 
-
-
-
-
+`~/.local/share/applications/gwtracker.desktop`
 
 
+Contents:
 
+`[Desktop Entry]
+Type=Application
+Name=GW Reforge Quest Tracker (Linux)
+Exec=gwtracker
+Icon=/home/USERNAME/GWReforgeTracker-Linux/GW_Icon.png
+Terminal=false
+Categories=Game;`
 
+Make it executable:
+
+`chmod +x ~/.local/share/applications/gwtracker.desktop`
+
+It will now appear in your application menu.
+
+# Troubleshooting
+### ❌ “No module named tkinter”
+You forgot to install `python3-tk` inside the distrobox.
+
+### ❌ Sync pulls too many random wiki entries
+This fork uses an improved scraper that filters out non-quest entries.
+If you still get noise, report the campaign and I'll refine the filter.
+
+### ❌ Tracker doesn't appear in app menu
+Run:
+`update-desktop-database ~/.local/share/applications`
+Or log out and back in.
+
+### Credits
+
+Original Windows application:
+https://github.com/Mr-Akito/GWReforgeTracker
+
+Linux rewrite & scraper refactor:
+@iamcvr
+
+This is a fan-made, open-source utility.
+Guild Wars and related assets belong to ArenaNet & NCSoft.
