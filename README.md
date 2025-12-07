@@ -106,32 +106,42 @@ Install required Python packages:
 pip install requests beautifulsoup4 customtkinter
 ```
 
-### 6. Installation & Integration
+### 6. Installation & Integration (Automated)
 
-**Step 1: Make scripts executable**
-Inside the container (where you cloned the repo):
+**Tested on Fedora/Bazzite/Bluefin (Distrobox)**
+
+Run the included installer to set up the Python environment and export the shortcuts automatically:
+
 ```bash
-chmod +x run_linux.sh
+chmod +x install.sh
+./install.sh
 ```
 
-**Step 2: Export to Host (CLI Command)**
-This creates a `gwtracker` command on your host system:
-```bash
-distrobox-export --bin $(pwd)/run_linux.sh --export-label gwtracker
-```
-You can now run `gwtracker` from any terminal on your host.
+**That's it!**
+- Run `gwtracker` from any terminal.
+- Launch **GW Reforge Tracker** from your app menu.
 
-**Step 3: Export Desktop Shortcut (App Menu)**
-1. Copy the template:
-   ```bash
-   cp gwtracker.desktop.template gwtracker.desktop
-   ```
-2. Export it to your host's application menu:
-   ```bash
-   distrobox-export --app ./gwtracker.desktop
-   ```
+---
 
-The **GW Reforge Tracker** icon will now appear in your system's app launcher.
+### Manual Installation (If script fails)
+If you prefer to do it manually:
+
+1. **Setup Python:**
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install requests beautifulsoup4 customtkinter
+    ```
+2. **Export Command:**
+    ```bash
+    chmod +x run_linux.sh
+    distrobox-export --bin $(pwd)/run_linux.sh --export-label gwtracker
+    ```
+3. **Export Shortcut:**
+    ```bash
+    cp gwtracker.desktop.template gwtracker.desktop
+    distrobox-export --app ./gwtracker.desktop
+    ```
 
 # Troubleshooting
 ### ❌ “No module named tkinter”
